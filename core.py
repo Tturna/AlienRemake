@@ -3,56 +3,67 @@
 
 import random
 import time
+from player import Player, Role
+from actions import Action
 
-FOOTPRINT_TYPES = ("small", "big")
-HEIGHT_TYPES = ("short", "tall")
-HAIRCOLOR_TYPES = ("red", "black", "brown")
-ROLE_HUMAN = 0
-ROLE_ALIEN = 1
+def evaluate_actions(players: tuple[Player]):
+    for pl in players:
+        if (pl.action_function != None):
+            pl.action_function()
 
-class Player:
-    # Set up properties or something so stuff like id can't be changed
-    def __init__(self) -> None:
-        self._id = random.randint(0, 1000000)
-        self.description = {
-            "footprint": random.choice(FOOTPRINT_TYPES),
-            "height": random.choice(FOOTPRINT_TYPES),
-            "haircolor":random.choice(FOOTPRINT_TYPES)
-        }
-        self.role = ROLE_HUMAN
-
-        @property
-        def id(self):
-            return self._id
+        pl.action_function = None
+        pl.leaving_quarters = False
 
 # Create a new player instance for each player who wants to join
 # This would be replaced by a thing that gets all joined players on Discord
 player_count = input("Player count? Replace this with a Discord thing.")
 player_count = int(player_count)
 
-players = []
-alien_index = random.randint(0, player_count - 1)
+players = [Player() for _ in range(player_count)]
 
-for _ in range(player_count):
-    p = Player()
-    players.append(p)
+# for _ in range(player_count):
+#     p = Player()
+#     players.append(p)
 
 players = tuple(players)
-players[alien_index].role = ROLE_ALIEN
+alien_index = random.randint(0, player_count - 1)
+players[alien_index].role = Role.ALIEN
 
 # Start the game
 print(f"Game is starting! {player_count} players joined.")
 
 # Make sure discussion is open
 # Wait for a bit
-time.sleep(5)
+time.sleep(3)
 
 # Reveal roles
 for pl in players:
-    print(f"pl({pl.id}), you are {pl.role}!")
+    print(f"pl({pl.id}), you are {pl.role.name}!")
+    print(f"Footprint: {pl.description.footprint.name}")
 
 # Wait a bit
-time.sleep(5)
+time.sleep(3)
 
 # Action phase
 print("Discussion is over. Choose your action.")
+for pl in players:
+    print(f"pl({pl.id}), choose your action!")
+    action_input = input("Action? (scout, hide, investigate, loot, donate, protect, use_item, kill): ")
+    target_input = input("Target? (pl_id, leave empty if action doesn't require target.): ")
+    action_wrapper, leaves_quarters = Action[action_input.upper()].value
+    pl.leaving_quarters = leaves_quarters
+    
+    if target_input == "":
+        pl.action_function = action_wrapper()
+    else:
+        # Get player with target id
+        target = next((p for p in players if p.id == int(target_input)), None)
+        pl.action_function = action_wrapper(target=target)
+
+# Evaluate actions
+evaluate_actions(players)
+
+# Wait a bit
+time.sleep(3)
+
+print("Discussion started.")
