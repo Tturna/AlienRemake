@@ -1,8 +1,8 @@
-from player import Player
 from enum import Enum
 import random
+from classes import Player
 
-def scout(target: Player):
+def scout_wrapper(target: Player):
     if target.leaving_quarters:
 
         def scout_action():
@@ -15,37 +15,37 @@ def scout(target: Player):
         return scout_action
     return None
 
-def hide():
-    pass
+def hide_wrapper(target=None):
+    return None
 
-def investigate():
-    pass
+def investigate_wrapper(target=None):
+    return None
 
-def loot():
-    pass
+def loot_wrapper(target=None):
+    return None
 
-def donate():
-    pass
+def donate_wrapper(target=None):
+    return None
 
-def protect():
-    pass
+def protect_wrapper(target=None):
+    return None
 
-def use_item():
-    pass
+def use_item_wrapper(target=None):
+    return None
 
-def kill():
-    pass
+def kill_wrapper(target=None):
+    return None
 
 class Action(Enum):
     """This is a list of all actions that can be performed by a player.
     The first value is the function that is called when the action is performed.
     The second value indicates whether the action will make the player leave their quarters.
     """
-    SCOUT = (scout, True)
-    HIDE = (hide, False)
-    INVESTIGATE = (investigate, True)
-    LOOT = (loot, True)
-    DONATE = (donate, False)
-    PROTECT = (protect, True)
-    USE_ITEM = (use_item, False)
-    KILL = (kill, True)
+    SCOUT = (scout_wrapper, True)
+    HIDE = (hide_wrapper, False)
+    INVESTIGATE = (investigate_wrapper, True)
+    LOOT = (loot_wrapper, True)
+    DONATE = (donate_wrapper, False)
+    PROTECT = (protect_wrapper, True)
+    USE_ITEM = (use_item_wrapper, False)
+    KILL = (kill_wrapper, True)

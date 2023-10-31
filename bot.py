@@ -1,18 +1,12 @@
 import discord
+from discord import app_commands
 import json
-from constants import TTURNA_USER, ROBOTICS_CHANNEL
-from classes import MyClient, GameState, Player, JoinGameView
+from constants import TTURNA_ID, GAME_CHANNEL_ID
+from bot_client import MyClient
+from actions import Action
 
 intents = discord.Intents.default()
 client = MyClient(intents=intents)
-
-game_state = GameState.OFF
-players = None
-
-def add_player_to_game(id):
-    players.append(Player(id))
-
-join_game_view = JoinGameView(add_player_to_game)
 
 # EVENTS -----------------------------------------------------------------------
 
@@ -29,51 +23,48 @@ async def ping(interaction: discord.Interaction):
 
 @client.tree.command()
 async def start(interaction: discord.Interaction):
-    global game_state
 
-    if (interaction.user.id != TTURNA_USER):
+    if (interaction.user.id != TTURNA_ID):
+        print(f"{interaction.user.id} tried to start the game")
         await interaction.response.send_message(f"You can't start the game", ephemeral=True)
         return
 
-    if (interaction.message.channel.id != ROBOTICS_CHANNEL):
+    if (interaction.channel.id != GAME_CHANNEL_ID):
         await interaction.response.send_message(f"Wrong channel", ephemeral=True)
         return
     
-    if (game_state == GameState.ON):
-        interaction.response.send_message("Game already running")
+    if (client.is_game_running()):
+        await interaction.response.send_message("Game already running", ephemeral=True)
         return
 
-    game_state = GameState.ON
-
-    # await interaction.response.send_message("Game started", ephemeral=True)
-    await interaction.channel.send("Game starting. Join now!", view=join_game_view)
-    await join_game_view.wait()
-
-    joined_players = "".join([pl.id for pl in players])
-
-    await interaction.channel.send(f"Join time ended. Joined players: {joined_players}")
+    await client.start_game(interaction)
 
 @client.tree.command()
 async def stop(interaction: discord.Interaction):
     global game_state
 
-    if (interaction.user.id != TTURNA_USER):
+    if (interaction.user.id != TTURNA_ID):
         await interaction.response.send_message(f"You can't stop the game", ephemeral=True)
         return
 
-    if (interaction.message.channel.id != ROBOTICS_CHANNEL):
+    if (interaction.channel.id != GAME_CHANNEL_ID):
         await interaction.response.send_message(f"Wrong channel", ephemeral=True)
         return
 
-    if (game_state == GameState.OFF):
-        msg = f'Game is not running'
-    else:
-        game_state = GameState.OFF
-        msg = f'Game stopped, {interaction.user.mention}'
+    # implement
 
-    await interaction.response.send_message(msg, ephemeral=True)
+@client.tree.command()
+@app_commands.describe(action="The action you want to perform")
+@app_commands.describe(target="The player you want to perform the action on")
+async def action(interaction: discord.Interaction, action: Action, target: discord.User = None):
+    if (not client.is_action_phase()):
+        await interaction.response.send_message("Not in action phase", ephemeral=True)
+        return
 
-# ------------------------------------------------------------------------------
+    action_wrapper, leaving_quarters = action.value
+    client.game.set_player_action(interaction.user.id, action_wrapper, leaving_quarters, target.id if target != None else None)
+
+    await interaction.response.send_message(f"Action set to {action.name}", ephemeral=True)
 
 with open('secret.json', 'r') as f:
     cont = json.load(f)
