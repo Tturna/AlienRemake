@@ -1,41 +1,18 @@
 import discord
-from discord import app_commands
 import json
-from enum import Enum
-
-UBSR_GUILD = discord.Object(id=984851431469236315)
-TTURNA_USER = discord.Object(id=207646629140889601)
-ROBOTICS_CHANNEL = discord.Object(id=1119326839060570133)
-
-class MyClient(discord.Client):
-    def __init__(self, *, intents: discord.Intents):
-        super().__init__(intents=intents)
-        # A CommandTree is a special type that holds all the application command
-        # state required to make it work. This is a separate class because it
-        # allows all the extra state to be opt-in.
-        # Whenever you want to work with application commands, your tree is used
-        # to store and work with them.
-        # Note: When using commands.Bot instead of discord.Client, the bot will
-        # maintain its own tree instead.
-        self.tree = app_commands.CommandTree(self)
-
-    # In this basic example, we just synchronize the app commands to one guild.
-    # Instead of specifying a guild to every command, we copy over our global commands instead.
-    # By doing so, we don't have to wait up to an hour until they are shown to the end-user.
-    async def setup_hook(self):
-        # This copies the global commands over to your guild.
-        self.tree.copy_global_to(guild=UBSR_GUILD)
-        await self.tree.sync(guild=UBSR_GUILD)
-
+from constants import TTURNA_USER, ROBOTICS_CHANNEL
+from classes import MyClient, GameState, Player, JoinGameView
 
 intents = discord.Intents.default()
 client = MyClient(intents=intents)
 
-class GameState(Enum):
-    OFF = 0
-    ON = 1
-
 game_state = GameState.OFF
+players = None
+
+def add_player_to_game(id):
+    players.append(Player(id))
+
+join_game_view = JoinGameView(add_player_to_game)
 
 # EVENTS -----------------------------------------------------------------------
 
@@ -61,14 +38,20 @@ async def start(interaction: discord.Interaction):
     if (interaction.message.channel.id != ROBOTICS_CHANNEL):
         await interaction.response.send_message(f"Wrong channel", ephemeral=True)
         return
-
+    
     if (game_state == GameState.ON):
-        msg = f'Game already running'
-    else:
-        game_state = GameState.ON
-        msg = f'Game started, {interaction.user.mention}'
+        interaction.response.send_message("Game already running")
+        return
 
-    await interaction.response.send_message(msg, ephemeral=True)
+    game_state = GameState.ON
+
+    # await interaction.response.send_message("Game started", ephemeral=True)
+    await interaction.channel.send("Game starting. Join now!", view=join_game_view)
+    await join_game_view.wait()
+
+    joined_players = "".join([pl.id for pl in players])
+
+    await interaction.channel.send(f"Join time ended. Joined players: {joined_players}")
 
 @client.tree.command()
 async def stop(interaction: discord.Interaction):

@@ -1,0 +1,5 @@
+import discord
+
+UBSR_GUILD = discord.Object(id=984851431469236315)
+TTURNA_USER = discord.Object(id=207646629140889601)
+ROBOTICS_CHANNEL = discord.Object(id=1119326839060570133)

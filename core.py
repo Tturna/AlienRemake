@@ -3,8 +3,8 @@
 
 import random
 import time
-from player import Player, Role
 from actions import Action
+from classes import Player, Role
 
 def evaluate_actions(players: tuple[Player]):
     for pl in players:
@@ -14,23 +14,11 @@ def evaluate_actions(players: tuple[Player]):
         pl.action_function = None
         pl.leaving_quarters = False
 
-# Create a new player instance for each player who wants to join
-# This would be replaced by a thing that gets all joined players on Discord
-player_count = input("Player count? Replace this with a Discord thing.")
-player_count = int(player_count)
+def init_game(players: tuple[Player]):
+    alien_index = random.randint(0, len(players) - 1)
+    players[alien_index].role = Role.ALIEN
 
-players = [Player() for _ in range(player_count)]
-
-# for _ in range(player_count):
-#     p = Player()
-#     players.append(p)
-
-players = tuple(players)
-alien_index = random.randint(0, player_count - 1)
-players[alien_index].role = Role.ALIEN
-
-# Start the game
-print(f"Game is starting! {player_count} players joined.")
+    # choose a couple random items that can be found this game
 
 # Make sure discussion is open
 # Wait for a bit
