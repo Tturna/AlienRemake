@@ -1,3 +1,5 @@
+# This provides an interface to the bot commands and events
+
 import discord
 from discord import app_commands
 import json
@@ -25,7 +27,7 @@ async def ping(interaction: discord.Interaction):
 async def start(interaction: discord.Interaction):
 
     if (interaction.user.id != TTURNA_ID):
-        print(f"{interaction.user.id} tried to start the game")
+        print(f"{interaction.user.nick} tried to start the game")
         await interaction.response.send_message(f"You can't start the game", ephemeral=True)
         return
 
@@ -40,10 +42,11 @@ async def start(interaction: discord.Interaction):
     await client.start_game(interaction)
 
 @client.tree.command()
-async def stop(interaction: discord.Interaction):
+async def abort(interaction: discord.Interaction):
     global game_state
 
     if (interaction.user.id != TTURNA_ID):
+        print(f"{interaction.user.nick} tried to stop the game")
         await interaction.response.send_message(f"You can't stop the game", ephemeral=True)
         return
 
@@ -51,20 +54,60 @@ async def stop(interaction: discord.Interaction):
         await interaction.response.send_message(f"Wrong channel", ephemeral=True)
         return
 
-    # implement
+    await client.abort_game(interaction)
 
 @client.tree.command()
-@app_commands.describe(action="The action you want to perform")
+@app_commands.describe(action_choice="The action you want to perform")
 @app_commands.describe(target="The player you want to perform the action on")
-async def action(interaction: discord.Interaction, action: Action, target: discord.User = None):
+@app_commands.choices(action_choice=[
+    app_commands.Choice(name=Action.SCOUT.value[1], value=Action.SCOUT.name),
+    app_commands.Choice(name=Action.HIDE.value[1], value=Action.HIDE.name),
+    app_commands.Choice(name=Action.INVESTIGATE.value[1], value=Action.INVESTIGATE.name),
+    # app_commands.Choice(name=Action.LOOT.value[1], value=Action.LOOT.name),
+    # app_commands.Choice(name=Action.DONATE.value[1], value=Action.DONATE.name),
+    app_commands.Choice(name=Action.PROTECT.value[1], value=Action.PROTECT.name),
+    # app_commands.Choice(name=Action.USE_ITEM.value[1], value=Action.USE_ITEM.name),
+    app_commands.Choice(name=Action.KILL.value[1], value=Action.KILL.name)
+])
+async def action(interaction: discord.Interaction, action_choice: app_commands.Choice[str], target: discord.User = None):
+    # TODO: Prevent dead people from playing
+
     if (not client.is_action_phase()):
-        await interaction.response.send_message("Not in action phase", ephemeral=True)
+        await interaction.response.send_message("🚫 Not in action phase", ephemeral=True)
         return
 
-    action_wrapper, leaving_quarters = action.value
-    client.game.set_player_action(interaction.user.id, action_wrapper, leaving_quarters, target.id if target != None else None)
+    action = Action[action_choice.value]
 
-    await interaction.response.send_message(f"Action set to {action.name}", ephemeral=True)
+    # TODO: Check if target is valid
+
+    action_wrapper, _ = action.value
+
+    if (target != None):
+        target_id = target.id
+        target_nick = target.nick
+        target_text = f"targeting **{target_nick}**"
+    else:
+        target_id = None
+        target_nick = None
+        target_text = "without a target"
+
+    msg = f"✅ Action set to **{action.name}** {target_text}. You will see the result here after the action phase."
+
+    async def callback(result: str):
+        await interaction.edit_original_response(content=msg + f"\n\n{result}")
+
+    # print(f"{interaction.user.nick} action: {action_wrapper}, target: {target.nick if target != None else 'None'}")
+    error_text = client.game.set_player_action(
+        user_id=interaction.user.id,
+        action_wrapper=action_wrapper,
+        target_id=target_id,
+        callback=callback
+    )
+
+    if (error_text is not None):
+        msg = f"🚫 Action failed:\n**{error_text}**"
+
+    await interaction.response.send_message(msg, ephemeral=True)
 
 with open('secret.json', 'r') as f:
     cont = json.load(f)

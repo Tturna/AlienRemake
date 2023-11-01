@@ -24,10 +24,10 @@ class JoinGameView(discord.ui.View):
         success = self.add_player_function(interaction.user)
 
         if (not success):
-            await interaction.response.send_message("Joining failed. You might be in the game already", ephemeral=True)
+            await interaction.response.send_message("🚫 Joining failed. You might be in the game already", ephemeral=True)
             return
 
-        await interaction.response.send_message("You have joined successfully", ephemeral=True)
+        await interaction.response.send_message("✅ You have joined successfully", ephemeral=True)
         print(f"{interaction.user.nick} joined the game")
 
 # Player
@@ -70,5 +70,18 @@ class Player:
         self.role = Role.HUMAN
         self.action_function = None
         self.leaving_quarters = False
+        self.hiding = False
+        self.attacked = False
+        self.protectors = []
+        self.action_callback = None
+        self.alive = True
+    
+    def reset_action_state(self):
+        self.action_function = None
+        self.leaving_quarters = False
+        self.hiding = False
+        self.attacked = False
+        self.protectors = []
+        self.action_callback = None
 
     user = property(fget=(lambda self: self._user_object))

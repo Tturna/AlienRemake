@@ -1,16 +1,17 @@
-# This is supposed to be the start of the Alien game logic
-# The point is to add Discord functionality later
+# This provides all the game logic
 
 import random
 import discord
-from actions import Action
-from classes import Player, Role, GameState
+from classes import Player, Role, GameState, Height, Footprint, Haircolor
 
 class Game:
     def __init__(self) -> None:
         self.game_state = GameState.ENDED
         self.players = dict()
         self.bot_client = None
+        self.alien_player_id = None
+        self.killed_player = None
+        self.evidence = None
 
     def add_player(self, user: discord.User):
         if (self.players.get(user.id) is not None):
@@ -19,78 +20,121 @@ class Game:
         self.players[user.id] = Player(user)
         return True
     
-    def set_player_action(self, user_id, action_wrapper, leaves_quarters, target_id):
+    def set_player_action(self, user_id: int, action_wrapper, target_id: int, callback):
         player = self.players.get(user_id)
         target = self.players.get(target_id)
 
-        player.action_function = action_wrapper(target)
-        player.leaving_quarters = leaves_quarters
-        player.target = target
+        # the wrapper sets all the data needed for the actions and
+        # returns the action to be called at the end of the action phase
+
+        # make sure the action is used with valid arguments
+        result = action_wrapper(player, target)
+        if (type(result) == str):
+            return result
+
+        player.action_function = action_wrapper(player, target)
+        player.action_callback = callback
+    
+    def set_evidence(self, killed_player: Player, evidence: Height or Footprint or Haircolor):
+        self.killed_player = killed_player
+        self.evidence = evidence
 
     def init_game(self, bot_client):
         self.bot_client = bot_client
-        alien_player = random.choice(list(self.players.values()))
+        self.alien_player_id = random.choice(list(self.players.keys()))
+
+        alien_player = self.players.get(self.alien_player_id)
         alien_player.role = Role.ALIEN
 
         print(f"The Alien is {alien_player.user.nick} ({alien_player.user.name})")
 
         # choose a couple random items that can be found this game
+    
+    def check_game_end(self) -> None or str:
+        alien_alive = False
+        alive_count = 0
 
-    def evaluate_actions(self) -> bool:
         for pl in list(self.players.values()):
-            if (pl.action_function != None):
-                pl.action_function()
-
-            pl.action_function = None
-            pl.leaving_quarters = False
+            if pl.role == Role.ALIEN:
+                alien_alive = True
+            
+            if pl.alive:
+                alive_count += 1
         
-        # Check if game ended
-        return False
+        if (alien_alive and alive_count == 1):
+            # alien wins
+            return "Alien wins!"
+        elif (not alien_alive):
+            # humans win
+            return "Humans win!"
+        
+        # game not ended
+        return None
+
+    async def evaluate_actions(self) -> None or str:
+        print("Evaluating actions")
+        players = list(self.players.values())
+
+        # Make sure the alien's action is evaluated first so evidence is set before investigations
+        alien_player = self.players.get(self.alien_player_id)
+
+        if (alien_player.action_function):
+            alien_result = alien_player.action_function(self)
+            await alien_player.action_callback(alien_result)
+
+        for pl in players:
+            print(f"{pl.user.nick} ({pl.role.name}), action: {pl.action_function}")
+            if (pl.role == Role.ALIEN): continue
+
+            if (pl.action_function):
+                result = pl.action_function(self)
+                
+                if (not pl.alive):
+
+                    # TODO: Figure out a way to tell a player they're dead even when they don't do an action
+                    # Maybe just don't tell them and rely on the global announcement?
+                    result += f"\n\n# ⚠️ You were killed by {alien_player.user.nick}!"
+
+                await pl.action_callback(result)
+
+        for pl in players:
+            pl.reset_action_state()
+        
+        # TODO: Announce killed player
+
+        # return self.check_game_end()
 
     async def run(self):
-        game_ended = False
+        win_text = None
 
-        while game_ended == False:
+        # Run the game until the game ends itself or something manually sets the game state to ENDED
+        while win_text is None or self.game_state != GameState.ENDED:
             self.game_state = GameState.ACTION_PHASE
             await self.bot_client.action_phase()
 
-            game_ended = self.evaluate_actions()
+            # Check for aborts
+            if self.game_state == GameState.ENDED: return
 
-            if game_ended: break
+            win_text = await self.evaluate_actions()
+
+            if win_text is not None: break
 
             self.game_state = GameState.DISCUSSION_PHASE
             await self.bot_client.discussion_phase()
 
+            # Check for aborts
+            if self.game_state == GameState.ENDED: return
+
             self.game_state = GameState.LYNCH_PHASE
-            game_ended = await self.bot_client.lynch_phase()
+            await self.bot_client.lynch_phase()
 
-
-if __name__ == "__main__":
-
-    # Make sure discussion is open
-    # Wait for a bit
-    # time.sleep(3)
-
-    # Action phase
-    print("Discussion is over. Choose your action.")
-    for pl in players:
-        print(f"pl({pl.id}), choose your action!")
-        action_input = input("Action? (scout, hide, investigate, loot, donate, protect, use_item, kill): ")
-        target_input = input("Target? (pl_id, leave empty if action doesn't require target.): ")
-        action_wrapper, leaves_quarters = Action[action_input.upper()].value
-        pl.leaving_quarters = leaves_quarters
+            # Check for aborts
+            if self.game_state == GameState.ENDED: return
         
-        if target_input == "":
-            pl.action_function = action_wrapper()
-        else:
-            # Get player with target id
-            target = next((p for p in players if p.id == int(target_input)), None)
-            pl.action_function = action_wrapper(target=target)
-
-    # Evaluate actions
-    # evaluate_actions(players)
-
-    # Wait a bit
-    # time.sleep(3)
-
-    # print("Discussion started.")
+        print(win_text)
+        await self.bot_client.stop_game(win_text)
+        self.reset_game()
+    
+    def reset_game(self):
+        self.game_state = GameState.ENDED
+        self.players = dict()

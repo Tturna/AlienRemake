@@ -1,14 +1,14 @@
+# This provides bot behavior and interacts with game logic
+
 import time
 import asyncio
 import discord
 from discord import app_commands
-from constants import UBSR_GUILD, GAME_CHANNEL_ID, JOIN_TIME, LOBBY_TIME, ACTION_TIME, DISCUSSION_TIME, LYNCH_TIME
+from constants import UBSR_GUILD, ALIEN_GAMER_ROLE_ID, JOIN_TIME, LOBBY_TIME, ACTION_TIME, DISCUSSION_TIME, LYNCH_TIME
 from classes import GameState, JoinGameView
 from core import Game
 
 class MyClient(discord.Client):
-
-
     def __init__(self, *, intents: discord.Intents):
         super().__init__(intents=intents)
         # A CommandTree is a special type that holds all the application command
@@ -37,6 +37,7 @@ class MyClient(discord.Client):
         return self.game.game_state is GameState.ACTION_PHASE
     
     async def start_game(self, interaction: discord.Interaction):
+        """Starts the game. Called by bot command."""
         self.game.game_state = GameState.JOIN_PHASE
         self.game_channel = interaction.channel
 
@@ -65,16 +66,62 @@ class MyClient(discord.Client):
         joined_players = str([f"{pl.user.nick} ({pl.user.name})" for pl in list(self.game.players.values())])
 
         print(f"Joined players ({len(self.game.players)}): {joined_players}")
-        await interaction.channel.send(f"{len(self.game.players)} players joined. Game is starting soon!")
+        await interaction.channel.send(f"{len(self.game.players)} player(s) joined.\n# Game is starting!")
+
+        for pl in list(self.game.players.values()):
+            await pl.user.add_roles(interaction.guild.get_role(ALIEN_GAMER_ROLE_ID))
 
         await asyncio.sleep(LOBBY_TIME)
         await self.game.run()
 
     async def action_phase(self):
+        """Called by core."""
         action_time_epoch = int(time.time()) + ACTION_TIME
         action_phase_msg = await self.game_channel.send(f"Action phase started! Time expires: <t:{action_time_epoch}:R>")
+
+        # TODO: Prevent discussion
 
         await asyncio.sleep(ACTION_TIME)
 
         await action_phase_msg.edit(content=f"Action phase ended. Time expired.")
         
+    async def discussion_phase(self):
+        discussion_time_epoch = int(time.time()) + DISCUSSION_TIME
+        discussion_phase_msg = await self.game_channel.send(f"Discussion phase started! Time expires: <t:{discussion_time_epoch}:R>")
+
+        # TODO: Allow discussion
+
+        await asyncio.sleep(DISCUSSION_TIME)
+
+        await discussion_phase_msg.edit(content=f"Discussion phase ended. Time expired.")
+    
+    async def lynch_phase(self):
+        """Called by core."""
+        lynch_time_epoch = int(time.time()) + LYNCH_TIME
+        lynch_phase_msg = await self.game_channel.send(f"Lynch phase started! Time expires: <t:{lynch_time_epoch}:R>")
+
+        # TODO: Give a gun to a player
+
+        await asyncio.sleep(LYNCH_TIME)
+
+        await lynch_phase_msg.edit(content=f"Lynch phase ended. Time expired.")
+    
+    async def stop_game(self, win_text: str):
+        """Stops the game and removes the Alien Gamer role from all players.
+        Called by core."""
+        await self.game_channel.send(f"Game ended. {win_text}")
+
+        for pl in list(self.game.players.values()):
+            await pl.user.remove_roles(self.game_channel.guild.get_role(ALIEN_GAMER_ROLE_ID))
+        
+        self.game.reset_game()
+    
+    async def abort_game(self, interaction: discord.Interaction):
+        """Aborts the game and removes the Alien Gamer role from all players.
+        Called by bot command."""
+        await interaction.response.send_message("Game aborted")
+
+        for pl in list(self.game.players.values()):
+            await pl.user.remove_roles(self.game_channel.guild.get_role(ALIEN_GAMER_ROLE_ID))
+        
+        self.game.reset_game()
