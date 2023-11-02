@@ -24,7 +24,7 @@ def scout_wrapper(player: Player, target: Player):
         return "You can't scout as the alien."
 
     if (target is None):
-        return "Scout action requires a player target."
+        return "Scout action requires a valid player target."
     
     if (target.user.id == player.user.id):
         return "You can't scout yourself."
@@ -107,17 +107,45 @@ def investigate_wrapper(player: Player, target: Player = None):
     return investigate_action
 
 def loot_wrapper(player: Player, target: Player = None):
-    return None
+    return "Not implemented yet."
+
+# TODO: Make sure donate works
 
 def donate_wrapper(player: Player, target: Player = None):
-    return None
+    if (target is None):
+        return "Donate action requires a valid player target."
+    
+    if (target.user.id == player.user.id):
+        return "You can't donate to yourself."
+    
+    if (not target.alive):
+        return "You can't target dead players."
+    
+    if (player.action_points < 1):
+        return "You don't have anything to donate!"
+    
+    def donate_action(game=None):
+        print("Donation!!!!")
+        print(f"{player.user.name} has {player.action_points} action points")
+        print(f"{target.user.name} has {target.action_points} action points")
+        player.action_points -= 1
+        target.action_points += 1
+        print(f"{player.user.name} donated 1 action point to {target.user.name}")
+        print(f"{player.user.name} has {player.action_points} action points")
+        print(f"{target.user.name} has {target.action_points} action points")
+
+        target_name = target.user.nick if target.user.nick else target.user.name
+
+        return f"❗ You donated an action point to {target_name}."
+    
+    return donate_action
 
 def protect_wrapper(player: Player, target: Player = None):
     if (player.role == Role.ALIEN):
         return "You can't protect as the alien."
 
     if (target is None):
-        return "Protect action requires a player target."
+        return "Protect action requires a valid player target."
 
     if (not target.alive):
         return "You can't target dead players."
@@ -143,14 +171,14 @@ def protect_wrapper(player: Player, target: Player = None):
     return protect_action
 
 def use_item_wrapper(player: Player, target: Player = None):
-    return None
+    return "Not implemented yet."
 
 def kill_wrapper(player: Player, target: Player = None):
     if (player.role == Role.HUMAN):
         return "You can't kill as a human."
 
     if (target is None):
-        return "Kill action requires a player target."
+        return "Kill action requires a valid player target."
     
     if (target.user.id == player.user.id):
         return "You can't target yourself."
@@ -188,7 +216,7 @@ def kill_wrapper(player: Player, target: Player = None):
             rng_description = get_random_description(kill_target.description)
             game.set_evidence(kill_target, rng_description)
         else:
-            msg = f"You killed {target_name}!"
+            msg = f"🔪 **You killed {target_name}!**"
             target.alive = False
 
             rng_description = get_random_description(target.description)

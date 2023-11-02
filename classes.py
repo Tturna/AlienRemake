@@ -1,7 +1,7 @@
-from constants import JOIN_TIME
 import discord
-from enum import Enum
 import random
+from enum import Enum
+from constants import JOIN_TIME
 
 class GameState(Enum):
     ENDED = 0
@@ -40,20 +40,25 @@ class ShowRoleView(discord.ui.View):
     @discord.ui.button(label='Show role', style=discord.ButtonStyle.green)
     async def show_role(self, interaction: discord.Interaction, button: discord.ui.Button):
 
-        if (not self.game.players.has(interaction.user.id)):
+        if (interaction.user.id not in self.game.players.keys()):
             await interaction.response.send_message("🚫 You are not in the game", ephemeral=True)
             return
 
         player = self.game.players.get(interaction.user.id)
         
         if (player.role == Role.ALIEN):
-            instruction = "Kill all humans 🔪"
-            article = "an"
+            role_text = "You are the alien 👽"
+            instruction = "Kill all humans and don't get caught 🔪"
         else:
+            role_text = "You are a human 🕵️"
             instruction = "Find and eliminate the alien 👽"
-            article = "a"
+        
+        footprint = player.description.footprint.name.lower()
+        height = player.description.height.name.lower()
+        haircolor = player.description.haircolor.name.lower()
+        description = f"**Your description:**\nFootprint: {footprint}\nHeight: {height}\nHaircolor: {haircolor}"
 
-        await interaction.response.send_message(f"## You are {article} {player.role.name}\n{instruction}", ephemeral=True)
+        await interaction.response.send_message(f"## {role_text}\n{instruction}\n\n{description}", ephemeral=True)
 
 class ActionView(discord.ui.View):
     def __init__(self, game):
@@ -63,40 +68,46 @@ class ActionView(discord.ui.View):
     @discord.ui.button(label='Show Points', style=discord.ButtonStyle.blurple)
     async def show_action_points(self, interaction: discord.Interaction, button: discord.ui.Button):
 
-        if (not self.game.players.has(interaction.user.id)):
+        if (interaction.user.id not in self.game.players.keys()):
             await interaction.response.send_message("🚫 You are not in the game", ephemeral=True)
             return
 
         player = self.game.players[interaction.user.id]
-        await interaction.response.send_message(f"You have {player.action_points} action points.", ephemeral=True)
+        await interaction.response.send_message(f"You have **{player.action_points}** action points.", ephemeral=True)
     
     @discord.ui.button(label='Show Actions', style=discord.ButtonStyle.green)
     async def show_available_actions(self, interaction: discord.Interaction, button: discord.ui.Button):
+        
+        # "Lazy import" hack to prevent circular import
+        from actions import Action
 
-        if (not self.game.players.has(interaction.user.id)):
+        if (interaction.user.id not in self.game.players.keys()):
             await interaction.response.send_message("🚫 You are not in the game", ephemeral=True)
             return
 
         role = self.game.players[interaction.user.id].role
 
-        # TODO: Figure out a better way to do actions so that they can be more dynamic
         if (role == Role.ALIEN):
-            actions = "Kill (2p)"
+            actions = f"{Action.KILL.value[1]}\n{Action.DONATE.value[1]}"
         else:
             # actions = "Scout (1p)\nHide (2p)\nInvestigate (1p)\nLoot (1p)\nDonate (1p)\nProtect (2p\nUse Item (1p)"
-            actions = "Scout (1p)\nHide (2p)\nInvestigate (1p)\nProtect (2p)"
+            # actions = "Scout (1p)\nHide (2p)\nInvestigate (1p)\nProtect (2p)"
+            actions = ""
+            for action in Action:
+                if action == Action.KILL: continue
+                actions += f"{action.value[1]}\n"
         
-        await interaction.response.send_message(f"Available actions:\n{actions}", ephemeral=True)
+        await interaction.response.send_message(f"**Available actions:**\n\n{actions}\n\nSelect an action with the `/action` slash command.", ephemeral=True)
 
 # Player
 
 class Footprint(Enum):
     SMALL = 0
-    BIG = 0
+    BIG = 1
 
 class Height(Enum):
     SHORT = 0
-    TALL = 0
+    TALL = 1
 
 class Haircolor(Enum):
     RED = 0

@@ -4,6 +4,7 @@ import discord
 from discord import app_commands
 import json
 from constants import TTURNA_ID, GAME_CHANNEL_ID
+from classes import Role
 from bot_client import MyClient
 from actions import Action
 
@@ -58,19 +59,27 @@ async def abort(interaction: discord.Interaction):
 
 @client.tree.command()
 @app_commands.describe(action_choice="The action you want to perform")
-@app_commands.describe(target="The player you want to perform the action on. This is optional for some actions.")
+@app_commands.describe(target="The player you want to perform the action on. This is optional for some actions. Type '@' if you can't find the player.")
 @app_commands.choices(action_choice=[
     app_commands.Choice(name=Action.SCOUT.value[1], value=Action.SCOUT.name),
     app_commands.Choice(name=Action.HIDE.value[1], value=Action.HIDE.name),
     app_commands.Choice(name=Action.INVESTIGATE.value[1], value=Action.INVESTIGATE.name),
     # app_commands.Choice(name=Action.LOOT.value[1], value=Action.LOOT.name),
-    # app_commands.Choice(name=Action.DONATE.value[1], value=Action.DONATE.name),
+    app_commands.Choice(name=Action.DONATE.value[1], value=Action.DONATE.name),
     app_commands.Choice(name=Action.PROTECT.value[1], value=Action.PROTECT.name),
     # app_commands.Choice(name=Action.USE_ITEM.value[1], value=Action.USE_ITEM.name),
     app_commands.Choice(name=Action.KILL.value[1], value=Action.KILL.name)
 ])
 async def action(interaction: discord.Interaction, action_choice: app_commands.Choice[str], target: discord.Member = None):
     """Set your action for the current action phase."""
+
+    if (interaction.channel.id != GAME_CHANNEL_ID):
+        await interaction.response.send_message(f"Wrong channel", ephemeral=True)
+        return
+    
+    if (not client.is_game_running()):
+        await interaction.response.send_message("🚫 Game not running", ephemeral=True)
+        return
 
     player = client.game.players.get(interaction.user.id)
 
@@ -112,6 +121,66 @@ async def action(interaction: discord.Interaction, action_choice: app_commands.C
         msg = f"🚫 Action failed:\n**{error_text}**"
 
     await interaction.response.send_message(msg, ephemeral=True)
+
+@client.tree.command()
+async def cancel(interaction: discord.Interaction):
+    """Cancel your action for the current action phase."""
+
+    if (interaction.channel.id != GAME_CHANNEL_ID):
+        await interaction.response.send_message(f"Wrong channel", ephemeral=True)
+        return
+    
+    if (not client.is_game_running()):
+        await interaction.response.send_message("🚫 Game not running", ephemeral=True)
+        return
+    
+    if (not client.is_action_phase()):
+        await interaction.response.send_message("🚫 Not in action phase", ephemeral=True)
+        return
+    
+    player = client.game.players.get(interaction.user.id)
+
+    if (not player.alive):
+        await interaction.response.send_message("🚫 You are dead", ephemeral=True)
+        return
+    
+    if (player.action_function is None):
+        await interaction.response.send_message("🚫 You have no action set", ephemeral=True)
+        return
+    
+    player.action_function = None
+    player.action_callback = None
+    player.leaving_quarters = False
+
+    await interaction.response.send_message("✅ Action cancelled", ephemeral=True)
+
+@client.tree.command()
+async def role(interaction: discord.Interaction):
+    """Show your role and description."""
+
+    if (interaction.channel.id != GAME_CHANNEL_ID):
+        await interaction.response.send_message(f"Wrong channel", ephemeral=True)
+        return
+    
+    if (not client.is_game_running()):
+        await interaction.response.send_message("🚫 Game not running", ephemeral=True)
+        return
+
+    player = client.game.players.get(interaction.user.id)
+    
+    if (player.role == Role.ALIEN):
+        role_text = "You are the alien 👽"
+        instruction = "Kill all humans and don't get caught 🔪"
+    else:
+        role_text = "You are a human 🕵️"
+        instruction = "Find and eliminate the alien 👽"
+    
+    footprint = player.description.footprint.name.lower()
+    height = player.description.height.name.lower()
+    haircolor = player.description.haircolor.name.lower()
+    description = f"**Your description:**\nFootprint: {footprint}\nHeight: {height}\nHaircolor: {haircolor}"
+
+    await interaction.response.send_message(f"## {role_text}\n{instruction}\n\n{description}", ephemeral=True)
 
 with open('secret.json', 'r') as f:
     cont = json.load(f)

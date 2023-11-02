@@ -4,6 +4,7 @@ import random
 import discord
 from classes import Player, Role, GameState, Height, Footprint, Haircolor
 
+# TODO: Check if Python has singletons or something
 class Game:
     def __init__(self) -> None:
         self.game_state = GameState.ENDED
@@ -13,19 +14,23 @@ class Game:
         self.killed_player = None
         self.evidence = None
 
-    def add_player(self, user: discord.User):
+    def add_player(self, user: discord.User) -> bool:
+        """Adds a player to the game if not in already. Returns True if successful, otherwise False."""
         if (self.players.get(user.id) is not None):
             return False
 
         self.players[user.id] = Player(user)
         return True
     
-    def set_player_action(self, user_id: int, action_wrapper, target_id: int, callback):
+    def set_player_action(self, user_id: int, action_wrapper, target_id: int, callback) -> None or str:
+        """Sets the action for a player. Returns None if successful, otherwise returns an error message."""
+
         player = self.players.get(user_id)
         target = self.players.get(target_id)
 
         # the wrapper sets all the data needed for the actions and
         # returns the action to be called at the end of the action phase
+        # or an error message if the action failed
 
         # make sure the action is used with valid arguments
         result = action_wrapper(player, target)
@@ -36,10 +41,12 @@ class Game:
         player.action_callback = callback
     
     def set_evidence(self, killed_player: Player, evidence: Height or Footprint or Haircolor):
+        """Sets the evidence for the next discussion and lynch phases."""
         self.killed_player = killed_player
         self.evidence = evidence
 
     def init_game(self, bot_client):
+        """Initializes the game. Called when the game starts with enough players."""
         self.bot_client = bot_client
         self.alien_player_id = random.choice(list(self.players.keys()))
 
@@ -51,6 +58,8 @@ class Game:
         # choose a couple random items that can be found this game
     
     def check_game_end(self) -> None or str:
+        """Checks if the game has ended. Returns None if not, otherwise returns a string with the win text."""
+
         alien_alive = False
         alive_count = 0
 
@@ -72,8 +81,19 @@ class Game:
         return None
 
     async def evaluate_actions(self) -> None or str:
+        """Evaluates the actions of all players. Returns None if the game hasn't ended, otherwise returns a string with the win text."""
+
         print("Evaluating actions")
         players = list(self.players.values())
+
+        # TODO: Figure out action evaluation order
+
+        # Example issue: Hiding has to happen first so that protectors get the right message, and
+        # kills have to happen after that so people can hide and protect, but kills have to happen
+        # before investigations so that they get clues.
+
+        # ?
+        # Hide -> Protect -> Kill -> Investigate -> Scout -> Loot -> Use Item -> Donate
 
         # Make sure the alien's action is evaluated first so evidence is set before investigations
         alien_player = self.players.get(self.alien_player_id)
@@ -94,21 +114,26 @@ class Game:
                     # TODO: Figure out a way to tell a player they're dead even when they don't do an action
                     # Maybe just don't tell them and rely on the global announcement?
 
-                    killer_name = alien_player.user.nick if alien_player.alive else alien_player.user.name
-                    result += f"\n\n# ⚠️ You were killed by {killer_name}!"
+                    killer_name = alien_player.user.nick if alien_player.user.nick else alien_player.user.name
+                    result += f"\n\n# You were killed by {killer_name}!"
 
                 await pl.action_callback(result)
 
         for pl in players:
             pl.reset_action_state()
         
-        self.evidence = None
-        
-        # TODO: Announce killed player
+        if (self.killed_player is not None):
+            killed_player_name = self.killed_player.user.nick if self.killed_player.user.nick else self.killed_player.user.name
+            await self.bot_client.announce_killed_player(killed_player_name)
 
-        # return self.check_game_end()
+        self.evidence = None
+        self.killed_player = None
+
+        return self.check_game_end()
 
     async def run(self):
+        """Iterate through the game phases until the game ends."""
+
         win_text = None
 
         # Run the game until the game ends itself or something manually sets the game state to ENDED
@@ -117,7 +142,8 @@ class Game:
 
             # Increment action points
             for pl in list(self.players.values()):
-                pl.action_points += 1
+                if (pl.alive):
+                    pl.action_points += 1
 
             await self.bot_client.action_phase()
 
@@ -145,5 +171,7 @@ class Game:
         self.reset_game()
     
     def reset_game(self):
+        """Resets the game state. Called when the game ends."""
+
         self.game_state = GameState.ENDED
         self.players = dict()

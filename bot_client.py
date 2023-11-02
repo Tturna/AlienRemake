@@ -38,6 +38,7 @@ class MyClient(discord.Client):
     
     async def start_game(self, interaction: discord.Interaction):
         """Starts the game. Called by bot command."""
+
         self.game.game_state = GameState.JOIN_PHASE
         self.game_channel = interaction.channel
 
@@ -82,23 +83,26 @@ class MyClient(discord.Client):
 
     async def action_phase(self):
         """Called by core."""
+
         action_time_epoch = int(time.time()) + ACTION_TIME
         action_view = ActionView(self.game)
-        action_phase_text = f"🔍 **Action phase started!** Time expires: <t:{action_time_epoch}:R>\n\nSee your points and actions:"
+        action_phase_text = f"🔍 **Action phase started!** Time expires: <t:{action_time_epoch}:R>\n\n**+1 Action Point!**\n\nSee your points and actions:"
 
         action_phase_msg = await self.game_channel.send(action_phase_text, view=action_view)
 
-        # TODO: Prevent discussion
+        # TODO: Prevent discussion. Or not because you can't send slash commands I think?
 
         await asyncio.sleep(ACTION_TIME)
 
         await action_phase_msg.edit(content=f"Action phase ended. Time expired.")
         
     async def discussion_phase(self):
+        """Called by core."""
+
         discussion_time_epoch = int(time.time()) + DISCUSSION_TIME
         discussion_phase_msg = await self.game_channel.send(f"Discussion phase started! Time expires: <t:{discussion_time_epoch}:R>")
 
-        # TODO: Allow discussion
+        # TODO: Allow discussion(?)
 
         await asyncio.sleep(DISCUSSION_TIME)
 
@@ -107,7 +111,7 @@ class MyClient(discord.Client):
     async def lynch_phase(self):
         """Called by core."""
         lynch_time_epoch = int(time.time()) + LYNCH_TIME
-        lynch_phase_msg = await self.game_channel.send(f"Lynch phase started! Time expires: <t:{lynch_time_epoch}:R>")
+        lynch_phase_msg = await self.game_channel.send(f"Lynch phase started! Time expires: <t:{lynch_time_epoch}:R>\n\n*This is not implemented lmao*")
 
         # TODO: Give a gun to a player
 
@@ -115,10 +119,15 @@ class MyClient(discord.Client):
 
         await lynch_phase_msg.edit(content=f"Lynch phase ended. Time expired.")
     
+    async def announce_killed_player(self, killed_player_name: str):
+        """Called by core."""
+        await self.game_channel.send(f"# ⚠️ {killed_player_name} was killed! 🔪")
+    
     # TODO: Figure out if this separation of functions makes ANY sense
     async def stop_game(self, end_text: str):
         """Stops the game and removes the Alien Gamer role from all players.
         Called by core."""
+
         await self.game_channel.send(f"Game ended. {end_text}")
 
         for pl in list(self.game.players.values()):
@@ -129,6 +138,7 @@ class MyClient(discord.Client):
     async def abort_game(self, interaction: discord.Interaction):
         """Aborts the game and removes the Alien Gamer role from all players.
         Called by bot command."""
+
         await interaction.response.send_message("Game aborted")
 
         for pl in list(self.game.players.values()):
