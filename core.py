@@ -93,12 +93,16 @@ class Game:
 
                     # TODO: Figure out a way to tell a player they're dead even when they don't do an action
                     # Maybe just don't tell them and rely on the global announcement?
-                    result += f"\n\n# ⚠️ You were killed by {alien_player.user.nick}!"
+
+                    killer_name = alien_player.user.nick if alien_player.alive else alien_player.user.name
+                    result += f"\n\n# ⚠️ You were killed by {killer_name}!"
 
                 await pl.action_callback(result)
 
         for pl in players:
             pl.reset_action_state()
+        
+        self.evidence = None
         
         # TODO: Announce killed player
 

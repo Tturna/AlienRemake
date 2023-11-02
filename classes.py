@@ -29,7 +29,8 @@ class JoinGameView(discord.ui.View):
             return
 
         await interaction.response.send_message("✅ You have joined successfully", ephemeral=True)
-        print(f"{interaction.user.nick} joined the game")
+        print(f"{interaction.user.name} joined the game")
+
 
 class ShowRoleView(discord.ui.View):
     def __init__(self, game):
@@ -38,14 +39,21 @@ class ShowRoleView(discord.ui.View):
     
     @discord.ui.button(label='Show role', style=discord.ButtonStyle.green)
     async def show_role(self, interaction: discord.Interaction, button: discord.ui.Button):
-        player = self.game.players[interaction.user.id]
+
+        if (not self.game.players.has(interaction.user.id)):
+            await interaction.response.send_message("🚫 You are not in the game", ephemeral=True)
+            return
+
+        player = self.game.players.get(interaction.user.id)
         
         if (player.role == Role.ALIEN):
             instruction = "Kill all humans 🔪"
+            article = "an"
         else:
             instruction = "Find and eliminate the alien 👽"
+            article = "a"
 
-        await interaction.response.send_message(f"## Your role is: {player.role}\n{instruction}", ephemeral=True)
+        await interaction.response.send_message(f"## You are {article} {player.role.name}\n{instruction}", ephemeral=True)
 
 class ActionView(discord.ui.View):
     def __init__(self, game):
@@ -54,10 +62,21 @@ class ActionView(discord.ui.View):
     
     @discord.ui.button(label='Show Points', style=discord.ButtonStyle.blurple)
     async def show_action_points(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_message(f"You have {interaction.user.action_points} action points.", ephemeral=True)
+
+        if (not self.game.players.has(interaction.user.id)):
+            await interaction.response.send_message("🚫 You are not in the game", ephemeral=True)
+            return
+
+        player = self.game.players[interaction.user.id]
+        await interaction.response.send_message(f"You have {player.action_points} action points.", ephemeral=True)
     
     @discord.ui.button(label='Show Actions', style=discord.ButtonStyle.green)
     async def show_available_actions(self, interaction: discord.Interaction, button: discord.ui.Button):
+
+        if (not self.game.players.has(interaction.user.id)):
+            await interaction.response.send_message("🚫 You are not in the game", ephemeral=True)
+            return
+
         role = self.game.players[interaction.user.id].role
 
         # TODO: Figure out a better way to do actions so that they can be more dynamic

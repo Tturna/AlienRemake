@@ -8,6 +8,8 @@ def get_random_description(description: Description):
 
     return desc_features[feature_key]
 
+# TODO: Unit tests
+
 # Action wrappers
 # All wrappers should return a function that returns a string representing
 # the result of the action. The inner function should take the core game object as an optional argument.
@@ -38,15 +40,17 @@ def scout_wrapper(player: Player, target: Player):
     def scout_action(game=None) -> str:
         player.action_points -= 1
 
+        target_name = target.user.nick if target.user.nick else target.user.name
+
         if (not target.leaving_quarters):
-            return f"❗ {target.user.nick} didn't leave their quarters."
+            return f"❗ {target_name} didn't leave their quarters."
 
         rng_description = get_random_description(target.description)
 
         feature_name = rng_description.__class__.__name__
         feature_quality = rng_description.name
 
-        result = f"❗ {target.user.nick} left their quarters.\n**{target.user.nick} has a *{feature_name}* of type *{feature_quality}***"
+        result = f"❗ {target_name} left their quarters.\n**{target_name} has a *{feature_name}* of type *{feature_quality}***"
 
         return result
     
@@ -87,6 +91,9 @@ def investigate_wrapper(player: Player, target: Player = None):
 
         if (game.killed_player == None):
             return f"❗ No one died!"
+        
+        if (game.evidence == None):
+            return f"❗ You didn't find any evidence!"
 
         evidence = game.evidence
 
@@ -123,10 +130,12 @@ def protect_wrapper(player: Player, target: Player = None):
     def protect_action(game=None):
         player.action_points -= 2
 
+        target_name = target.user.nick if target.user.nick else target.user.name
+
         if (target.hiding):
-            msg = f"❗ *You look for {target.user.nick} but can't find them...*"
+            msg = f"❗ *You look for {target_name} but can't find them...*"
         else:
-            msg = f"❗ You are protecting {target.user.nick}."
+            msg = f"❗ You are protecting {target_name}."
 
         target.protectors.append(player)
         return msg
@@ -158,24 +167,28 @@ def kill_wrapper(player: Player, target: Player = None):
     def kill_action(game=None):
         player.action_points -= 2
 
+        target_name = target.user.nick if target.user.nick else target.user.name
+
         protected = len(target.protectors) > 0
         kill_target = target
 
         if (target.hiding):
-            msg = f"❗ You couldn't find {target.user.nick}. Your attack failed!"
+            msg = f"❗ You couldn't find {target_name}. Your attack failed!"
 
         elif (protected):
-            msg = f"❗ {target.user.nick} is not alone. Your attack failed!"
+            msg = f"❗ {target_name} is not alone. Your attack failed!"
         
         elif (target.hiding and protected):
             kill_target = target.protectors[0]
-            msg = f"You couldn't find {target.user.nick}, but you found {kill_target.user.nick}! You killed them instead."
+            kill_target_name = kill_target.user.nick if kill_target.user.nick else kill_target.user.name
+
+            msg = f"You couldn't find {target_name}, but you found {kill_target_name}! You killed them instead."
             kill_target.alive = False
 
             rng_description = get_random_description(kill_target.description)
             game.set_evidence(kill_target, rng_description)
         else:
-            msg = f"You killed {target.user.nick}!"
+            msg = f"You killed {target_name}!"
             target.alive = False
 
             rng_description = get_random_description(target.description)

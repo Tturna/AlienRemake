@@ -27,7 +27,7 @@ async def ping(interaction: discord.Interaction):
 async def start(interaction: discord.Interaction):
 
     if (interaction.user.id != TTURNA_ID):
-        print(f"{interaction.user.nick} tried to start the game")
+        print(f"{interaction.user.name} tried to start the game")
         await interaction.response.send_message(f"You can't start the game", ephemeral=True)
         return
 
@@ -46,7 +46,7 @@ async def abort(interaction: discord.Interaction):
     global game_state
 
     if (interaction.user.id != TTURNA_ID):
-        print(f"{interaction.user.nick} tried to stop the game")
+        print(f"{interaction.user.name} tried to stop the game")
         await interaction.response.send_message(f"You can't stop the game", ephemeral=True)
         return
 
@@ -58,7 +58,7 @@ async def abort(interaction: discord.Interaction):
 
 @client.tree.command()
 @app_commands.describe(action_choice="The action you want to perform")
-@app_commands.describe(target="The player you want to perform the action on")
+@app_commands.describe(target="The player you want to perform the action on. This is optional for some actions.")
 @app_commands.choices(action_choice=[
     app_commands.Choice(name=Action.SCOUT.value[1], value=Action.SCOUT.name),
     app_commands.Choice(name=Action.HIDE.value[1], value=Action.HIDE.name),
@@ -69,8 +69,14 @@ async def abort(interaction: discord.Interaction):
     # app_commands.Choice(name=Action.USE_ITEM.value[1], value=Action.USE_ITEM.name),
     app_commands.Choice(name=Action.KILL.value[1], value=Action.KILL.name)
 ])
-async def action(interaction: discord.Interaction, action_choice: app_commands.Choice[str], target: discord.User = None):
-    # TODO: Prevent dead people from playing
+async def action(interaction: discord.Interaction, action_choice: app_commands.Choice[str], target: discord.Member = None):
+    """Set your action for the current action phase."""
+
+    player = client.game.players.get(interaction.user.id)
+
+    if (not player.alive):
+        await interaction.response.send_message("🚫 You are dead", ephemeral=True)
+        return
 
     if (not client.is_action_phase()):
         await interaction.response.send_message("🚫 Not in action phase", ephemeral=True)
@@ -82,11 +88,11 @@ async def action(interaction: discord.Interaction, action_choice: app_commands.C
 
     if (target != None):
         target_id = target.id
-        target_nick = target.nick
-        target_text = f"targeting **{target_nick}**"
+        target_name = target.nick if target.nick != None else target.name
+        target_text = f"targeting **{target_name}**"
     else:
         target_id = None
-        target_nick = None
+        target_name = None
         target_text = "without a target"
 
     msg = f"✅ Action set to **{action.name}** {target_text}. You will see the result here after the action phase."

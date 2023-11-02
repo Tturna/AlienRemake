@@ -84,7 +84,7 @@ class MyClient(discord.Client):
         """Called by core."""
         action_time_epoch = int(time.time()) + ACTION_TIME
         action_view = ActionView(self.game)
-        action_phase_text = f"Action phase started! Time expires: <t:{action_time_epoch}:R>\n\nSee your points and actions:"
+        action_phase_text = f"🔍 **Action phase started!** Time expires: <t:{action_time_epoch}:R>\n\nSee your points and actions:"
 
         action_phase_msg = await self.game_channel.send(action_phase_text, view=action_view)
 
