@@ -13,6 +13,7 @@ class GameState(Enum):
 
 # Views
 
+# TODO: Make it so only players can press these buttons 
 class JoinGameView(discord.ui.View):
     def __init__(self, add_player_function):
         super().__init__(timeout=JOIN_TIME)
@@ -29,6 +30,44 @@ class JoinGameView(discord.ui.View):
 
         await interaction.response.send_message("✅ You have joined successfully", ephemeral=True)
         print(f"{interaction.user.nick} joined the game")
+
+class ShowRoleView(discord.ui.View):
+    def __init__(self, game):
+        super().__init__()
+        self.game = game
+    
+    @discord.ui.button(label='Show role', style=discord.ButtonStyle.green)
+    async def show_role(self, interaction: discord.Interaction, button: discord.ui.Button):
+        player = self.game.players[interaction.user.id]
+        
+        if (player.role == Role.ALIEN):
+            instruction = "Kill all humans 🔪"
+        else:
+            instruction = "Find and eliminate the alien 👽"
+
+        await interaction.response.send_message(f"## Your role is: {player.role}\n{instruction}", ephemeral=True)
+
+class ActionView(discord.ui.View):
+    def __init__(self, game):
+        super().__init__()
+        self.game = game
+    
+    @discord.ui.button(label='Show Points', style=discord.ButtonStyle.blurple)
+    async def show_action_points(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_message(f"You have {interaction.user.action_points} action points.", ephemeral=True)
+    
+    @discord.ui.button(label='Show Actions', style=discord.ButtonStyle.green)
+    async def show_available_actions(self, interaction: discord.Interaction, button: discord.ui.Button):
+        role = self.game.players[interaction.user.id].role
+
+        # TODO: Figure out a better way to do actions so that they can be more dynamic
+        if (role == Role.ALIEN):
+            actions = "Kill (2p)"
+        else:
+            # actions = "Scout (1p)\nHide (2p)\nInvestigate (1p)\nLoot (1p)\nDonate (1p)\nProtect (2p\nUse Item (1p)"
+            actions = "Scout (1p)\nHide (2p)\nInvestigate (1p)\nProtect (2p)"
+        
+        await interaction.response.send_message(f"Available actions:\n{actions}", ephemeral=True)
 
 # Player
 
@@ -75,6 +114,7 @@ class Player:
         self.protectors = []
         self.action_callback = None
         self.alive = True
+        self.action_points = 0
     
     def reset_action_state(self):
         self.action_function = None

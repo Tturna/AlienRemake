@@ -110,6 +110,11 @@ class Game:
         # Run the game until the game ends itself or something manually sets the game state to ENDED
         while win_text is None or self.game_state != GameState.ENDED:
             self.game_state = GameState.ACTION_PHASE
+
+            # Increment action points
+            for pl in list(self.players.values()):
+                pl.action_points += 1
+
             await self.bot_client.action_phase()
 
             # Check for aborts

@@ -1,6 +1,6 @@
 from enum import Enum
 import random
-from classes import Player, Description
+from classes import Player, Description, Role
 
 def get_random_description(description: Description):
     desc_features = {k: v for k, v in description.__dict__.items() if not k.startswith('__')}
@@ -18,6 +18,9 @@ def get_random_description(description: Description):
 # They return an inner function that is called at the end of the action phase.
 
 def scout_wrapper(player: Player, target: Player):
+    if (player.role == Role.ALIEN):
+        return "You can't scout as the alien."
+
     if (target is None):
         return "Scout action requires a player target."
     
@@ -26,10 +29,15 @@ def scout_wrapper(player: Player, target: Player):
 
     if (not target.alive):
         return "You can't target dead players."
+    
+    if (player.action_points < 1):
+        return "Not enough action points!"
 
     player.leaving_quarters = True
 
     def scout_action(game=None) -> str:
+        player.action_points -= 1
+
         if (not target.leaving_quarters):
             return f"❗ {target.user.nick} didn't leave their quarters."
 
@@ -45,20 +53,38 @@ def scout_wrapper(player: Player, target: Player):
     return scout_action
 
 def hide_wrapper(player: Player, target: Player = None):
+    if (player.role == Role.ALIEN):
+        return "You can't hide as the alien."
+    
+    if (player.action_points < 2):
+        return "Not enough action points!"
+
     player.hiding = True
 
     def hide_action(game=None) -> str:
+        player.action_points -= 2
+
         msg = "You hide in your quarters."
         
         if (player.attacked and len(player.protectors) > 0):
             msg += f"\n❗ *You hear violent screams outside your door...*"
+        
+        return msg
 
     return hide_action
 
 def investigate_wrapper(player: Player, target: Player = None):
+    if (player.role == Role.ALIEN):
+        return "You can't investigate as the alien."
+    
+    if (player.action_points < 1):
+        return "Not enough action points!"
+
     player.leaving_quarters = True
 
     def investigate_action(game=None):
+        player.action_points -= 1
+
         if (game.killed_player == None):
             return f"❗ No one died!"
 
@@ -68,7 +94,7 @@ def investigate_wrapper(player: Player, target: Player = None):
         feature_quality = evidence.name
 
         result = f"❗ You found a crime scene!\n**The killer has a *{feature_name}* of type *{feature_quality}***"
-
+    
         return result
     
     return investigate_action
@@ -80,15 +106,23 @@ def donate_wrapper(player: Player, target: Player = None):
     return None
 
 def protect_wrapper(player: Player, target: Player = None):
+    if (player.role == Role.ALIEN):
+        return "You can't protect as the alien."
+
     if (target is None):
         return "Protect action requires a player target."
 
     if (not target.alive):
         return "You can't target dead players."
-
+    
+    if (player.action_points < 2):
+        return "Not enough action points!"
+    
     player.leaving_quarters = True
 
     def protect_action(game=None):
+        player.action_points -= 2
+
         if (target.hiding):
             msg = f"❗ *You look for {target.user.nick} but can't find them...*"
         else:
@@ -103,6 +137,9 @@ def use_item_wrapper(player: Player, target: Player = None):
     return None
 
 def kill_wrapper(player: Player, target: Player = None):
+    if (player.role == Role.HUMAN):
+        return "You can't kill as a human."
+
     if (target is None):
         return "Kill action requires a player target."
     
@@ -111,11 +148,16 @@ def kill_wrapper(player: Player, target: Player = None):
     
     if (not target.alive):
         return "You can't target dead players."
-
+    
+    if (player.action_points < 2):
+        return "Not enough action points!"
+    
     player.leaving_quarters = True
     target.attacked = True
 
     def kill_action(game=None):
+        player.action_points -= 2
+
         protected = len(target.protectors) > 0
         kill_target = target
 

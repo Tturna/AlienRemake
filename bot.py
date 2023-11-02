@@ -78,8 +78,6 @@ async def action(interaction: discord.Interaction, action_choice: app_commands.C
 
     action = Action[action_choice.value]
 
-    # TODO: Check if target is valid
-
     action_wrapper, _ = action.value
 
     if (target != None):

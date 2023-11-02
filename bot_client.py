@@ -4,8 +4,8 @@ import time
 import asyncio
 import discord
 from discord import app_commands
-from constants import UBSR_GUILD, ALIEN_GAMER_ROLE_ID, JOIN_TIME, LOBBY_TIME, ACTION_TIME, DISCUSSION_TIME, LYNCH_TIME
-from classes import GameState, JoinGameView
+from constants import UBSR_GUILD, ALIEN_GAMER_ROLE_ID, MIN_PLAYERS, JOIN_TIME, LOBBY_TIME, ACTION_TIME, DISCUSSION_TIME, LYNCH_TIME
+from classes import GameState, JoinGameView, ShowRoleView, ActionView
 from core import Game
 
 class MyClient(discord.Client):
@@ -59,14 +59,20 @@ class MyClient(discord.Client):
         join_game_view.stop()
         print("Join time ended.")
 
-        # TODO: Abort if not enough players joined
+        if (len(self.game.players) < MIN_PLAYERS):
+            await self.stop_game(f"Not enough players ({len(self.game.players)}). Minimum is {MIN_PLAYERS}.")
+            return
 
         self.game.init_game(self)
 
         joined_players = str([f"{pl.user.nick} ({pl.user.name})" for pl in list(self.game.players.values())])
 
         print(f"Joined players ({len(self.game.players)}): {joined_players}")
-        await interaction.channel.send(f"{len(self.game.players)} player(s) joined.\n# Game is starting!")
+
+        role_view = ShowRoleView(self.game)
+        game_start_msg = f"{len(self.game.players)} player(s) joined.\n# Game is starting!\nSee your role:"
+
+        await interaction.channel.send(game_start_msg, view=role_view)
 
         for pl in list(self.game.players.values()):
             await pl.user.add_roles(interaction.guild.get_role(ALIEN_GAMER_ROLE_ID))
@@ -77,7 +83,10 @@ class MyClient(discord.Client):
     async def action_phase(self):
         """Called by core."""
         action_time_epoch = int(time.time()) + ACTION_TIME
-        action_phase_msg = await self.game_channel.send(f"Action phase started! Time expires: <t:{action_time_epoch}:R>")
+        action_view = ActionView(self.game)
+        action_phase_text = f"Action phase started! Time expires: <t:{action_time_epoch}:R>\n\nSee your points and actions:"
+
+        action_phase_msg = await self.game_channel.send(action_phase_text, view=action_view)
 
         # TODO: Prevent discussion
 
@@ -106,10 +115,11 @@ class MyClient(discord.Client):
 
         await lynch_phase_msg.edit(content=f"Lynch phase ended. Time expired.")
     
-    async def stop_game(self, win_text: str):
+    # TODO: Figure out if this separation of functions makes ANY sense
+    async def stop_game(self, end_text: str):
         """Stops the game and removes the Alien Gamer role from all players.
         Called by core."""
-        await self.game_channel.send(f"Game ended. {win_text}")
+        await self.game_channel.send(f"Game ended. {end_text}")
 
         for pl in list(self.game.players.values()):
             await pl.user.remove_roles(self.game_channel.guild.get_role(ALIEN_GAMER_ROLE_ID))
