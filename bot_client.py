@@ -5,7 +5,8 @@ import asyncio
 import discord
 from discord import app_commands
 from constants import UBSR_GUILD, ALIEN_GAMER_ROLE_ID, MIN_PLAYERS, JOIN_TIME, LOBBY_TIME, ACTION_TIME, DISCUSSION_TIME, LYNCH_TIME
-from classes import GameState, JoinGameView, ShowRoleView, ActionView
+from classes import GameState
+from ui_elements import JoinGameView, ShowRoleView, ShowActionView
 from core import Game
 
 class MyClient(discord.Client):
@@ -19,7 +20,7 @@ class MyClient(discord.Client):
         # Note: When using commands.Bot instead of discord.Client, the bot will
         # maintain its own tree instead.
         self.tree = app_commands.CommandTree(self)
-        self.game = Game()
+        self.game = Game(self)
         self.game_channel = None
 
     # In this basic example, we just synchronize the app commands to one guild.
@@ -36,7 +37,7 @@ class MyClient(discord.Client):
     def is_action_phase(self) -> bool:
         return self.game.game_state is GameState.ACTION_PHASE
     
-    async def start_game(self, interaction: discord.Interaction):
+    async def start_game(self, interaction: discord.Interaction) -> None:
         """Starts the game. Called by bot command."""
 
         self.game.game_state = GameState.JOIN_PHASE
@@ -64,9 +65,9 @@ class MyClient(discord.Client):
             await self.stop_game(f"Not enough players ({len(self.game.players)}). Minimum is {MIN_PLAYERS}.")
             return
 
-        self.game.init_game(self)
+        self.game.init_game()
 
-        joined_players = str([f"{pl.user.nick} ({pl.user.name})" for pl in list(self.game.players.values())])
+        joined_players = str([f"{pl.member.nick} ({pl.member.name})" for pl in list(self.game.players.values())])
 
         print(f"Joined players ({len(self.game.players)}): {joined_players}")
 
@@ -76,7 +77,7 @@ class MyClient(discord.Client):
         await interaction.channel.send(game_start_msg, view=role_view)
 
         for pl in list(self.game.players.values()):
-            await pl.user.add_roles(interaction.guild.get_role(ALIEN_GAMER_ROLE_ID))
+            await pl.member.add_roles(interaction.guild.get_role(ALIEN_GAMER_ROLE_ID))
 
         await asyncio.sleep(LOBBY_TIME)
         await self.game.run()
@@ -85,7 +86,7 @@ class MyClient(discord.Client):
         """Called by core."""
 
         action_time_epoch = int(time.time()) + ACTION_TIME
-        action_view = ActionView(self.game)
+        action_view = ShowActionView(self.game)
         action_phase_text = f"🔍 **Action phase started!** Time expires: <t:{action_time_epoch}:R>\n\n**+1 Action Point!**\n\nSee your points and actions:"
 
         action_phase_msg = await self.game_channel.send(action_phase_text, view=action_view)
@@ -119,29 +120,25 @@ class MyClient(discord.Client):
 
         await lynch_phase_msg.edit(content=f"Lynch phase ended. Time expired.")
     
-    async def announce_killed_player(self, killed_player_name: str):
+    async def announce_killed_player(self, killed_player_name: str) -> None:
         """Called by core."""
         await self.game_channel.send(f"# ⚠️ {killed_player_name} was killed! 🔪")
     
-    # TODO: Figure out if this separation of functions makes ANY sense
     async def stop_game(self, end_text: str):
         """Stops the game and removes the Alien Gamer role from all players.
         Called by core."""
 
-        await self.game_channel.send(f"Game ended. {end_text}")
+        await self.game_channel.send(f"\n# Game ended. {end_text}")
 
         for pl in list(self.game.players.values()):
-            await pl.user.remove_roles(self.game_channel.guild.get_role(ALIEN_GAMER_ROLE_ID))
+            await pl.member.remove_roles(self.game_channel.guild.get_role(ALIEN_GAMER_ROLE_ID))
         
         self.game.reset_game()
     
-    async def abort_game(self, interaction: discord.Interaction):
+    async def abort_game(self, interaction: discord.Interaction) -> None:
         """Aborts the game and removes the Alien Gamer role from all players.
         Called by bot command."""
 
-        await interaction.response.send_message("Game aborted")
+        await interaction.response.send_message("Game aborted", ephemeral=True)
 
-        for pl in list(self.game.players.values()):
-            await pl.user.remove_roles(self.game_channel.guild.get_role(ALIEN_GAMER_ROLE_ID))
-        
-        self.game.reset_game()
+        await self.stop_game("Game aborted by admin.")
