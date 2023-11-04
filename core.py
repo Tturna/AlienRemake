@@ -13,6 +13,7 @@ class Game:
         self.players = dict()
         self.alien_player_id = None
         self.killed_player = None
+        self.shot_player = None
         self.evidence = None
 
     def add_player(self, member: discord.Member) -> bool:
@@ -27,6 +28,12 @@ class Game:
         """Sets the action for a player. Returns None if successful, otherwise returns an error message."""
 
         player = self.players.get(user_id)
+
+        if (action_wrapper is None):
+            player.action_function = None
+            player.action_callback = None
+            return None
+
         target = self.players.get(target_id)
 
         # the wrapper sets all the data needed for the actions and
@@ -126,9 +133,6 @@ class Game:
                 result = pl.action_function(self)
 
                 if (not pl.alive):
-                    # TODO: Figure out a way to tell a player they're dead even when they don't do an action
-                    # Maybe just don't tell them and rely on the global announcement?
-
                     killer_name = alien_player.member.nick if alien_player.member.nick else alien_player.member.name
                     result += f"\n\n# You were killed by {killer_name}!"
 
@@ -144,7 +148,7 @@ class Game:
         self.evidence = None
         self.killed_player = None
 
-        return self.check_game_end()
+        # return self.check_game_end()
 
     async def run(self):
         """Iterate through the game phases until the game ends."""
@@ -176,7 +180,27 @@ class Game:
             if self.game_state == GameState.ENDED: return
 
             self.game_state = GameState.LYNCH_PHASE
-            await self.bot_client.lynch_phase()
+
+            # pick random player to give the gun to
+            
+            gun_player = None
+
+            for pl in list(self.players.values()):
+                if (pl.alive):
+                    gun_player = pl
+                    break
+            
+            if (gun_player is None):
+                win_text = "No one is left alive. How did this happen?"
+                break
+
+            await self.bot_client.lynch_phase(gun_player)
+
+            # check if someone was shot
+            if (self.shot_player is not None):
+                self.shot_player.alive = False
+                await self.bot_client.announce_shot_player(self.shot_player.member.nick or self.shot_player.member.name)
+                self.shot_player = None
 
             # Check for aborts
             if self.game_state == GameState.ENDED: return

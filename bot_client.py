@@ -6,7 +6,7 @@ import discord
 from discord import app_commands
 from constants import UBSR_GUILD, ALIEN_GAMER_ROLE_ID, MIN_PLAYERS, JOIN_TIME, LOBBY_TIME, ACTION_TIME, DISCUSSION_TIME, LYNCH_TIME
 from classes import GameState
-from ui_elements import JoinGameView, ShowRoleView, ShowActionView
+from ui_elements import JoinGameView, ShowRoleView, ShowActionView, ShootView
 from core import Game
 
 class MyClient(discord.Client):
@@ -91,11 +91,13 @@ class MyClient(discord.Client):
 
         action_phase_msg = await self.game_channel.send(action_phase_text, view=action_view)
 
-        # TODO: Prevent discussion. Or not because you can't send slash commands I think?
+        for pl in list(self.game.players.values()):
+            await pl.member.remove_roles(self.game_channel.guild.get_role(ALIEN_GAMER_ROLE_ID))
 
         await asyncio.sleep(ACTION_TIME)
 
-        await action_phase_msg.edit(content=f"Action phase ended. Time expired.")
+        # TODO: Hide the action select
+        await action_phase_msg.edit(content=f"Action phase ended. Time expired.", view=None)
         
     async def discussion_phase(self):
         """Called by core."""
@@ -103,26 +105,34 @@ class MyClient(discord.Client):
         discussion_time_epoch = int(time.time()) + DISCUSSION_TIME
         discussion_phase_msg = await self.game_channel.send(f"Discussion phase started! Time expires: <t:{discussion_time_epoch}:R>")
 
-        # TODO: Allow discussion(?)
+        # TODO: cache the role
+        # casserole?
+        for pl in list(self.game.players.values()):
+            await pl.member.add_roles(self.game_channel.guild.get_role(ALIEN_GAMER_ROLE_ID))
 
         await asyncio.sleep(DISCUSSION_TIME)
 
         await discussion_phase_msg.edit(content=f"Discussion phase ended. Time expired.")
     
-    async def lynch_phase(self):
+    async def lynch_phase(self, gun_player):
         """Called by core."""
         lynch_time_epoch = int(time.time()) + LYNCH_TIME
-        lynch_phase_msg = await self.game_channel.send(f"Lynch phase started! Time expires: <t:{lynch_time_epoch}:R>\n\n*This is not implemented lmao*")
+        gun_player_name = gun_player.member.nick or gun_player.member.name
 
-        # TODO: Give a gun to a player
+        msg = f"Lynch phase started! Time expires: <t:{lynch_time_epoch}:R>\n\n🔫 **{gun_player_name}** has the gun!"
+        lynch_phase_msg = await self.game_channel.send(msg, view=ShootView(game=self.game, gun_player=gun_player))
 
         await asyncio.sleep(LYNCH_TIME)
 
-        await lynch_phase_msg.edit(content=f"Lynch phase ended. Time expired.")
+        await lynch_phase_msg.edit(content=f"Lynch phase ended. Time expired.", view=None)
     
     async def announce_killed_player(self, killed_player_name: str) -> None:
         """Called by core."""
         await self.game_channel.send(f"# ⚠️ {killed_player_name} was killed! 🔪")
+
+    async def announce_shot_player(self, shot_player_name: str) -> None:
+        """Called by core."""
+        await self.game_channel.send(f"# 🔫 {shot_player_name} was shot!")
     
     async def stop_game(self, end_text: str):
         """Stops the game and removes the Alien Gamer role from all players.
