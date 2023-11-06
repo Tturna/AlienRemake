@@ -39,6 +39,12 @@ class Description():
     height = property(fget=lambda self: self._height)
     haircolor = property(fget=lambda self: self._haircolor)
 
+    def get_random_description(self):
+        desc_features = {k: v for k, v in self.__dict__.items() if not k.startswith('__')}
+        feature_key = random.choice(list(desc_features.keys()))
+
+        return desc_features[feature_key]
+
 class Player:
     def __init__(self, member: discord.Member) -> None:
         self._member_object = member
