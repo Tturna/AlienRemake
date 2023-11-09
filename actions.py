@@ -4,14 +4,6 @@ import random
 from classes import Player, Description, Role
 from core import Game
 
-# TODO: Random description function to the Description class.
-# This is like completely backwards
-def get_random_description(description: Description):
-    desc_features = {k: v for k, v in description.__dict__.items() if not k.startswith('__')}
-    feature_key = random.choice(list(desc_features.keys()))
-
-    return desc_features[feature_key]
-
 # TODO: Unit tests
 
 # Action wrappers
@@ -50,7 +42,7 @@ def scout_wrapper(player: Player, target: Player):
         if (not target.leaving_quarters):
             return f"❗ {target_name} didn't leave their quarters."
 
-        rng_description = get_random_description(target.description)
+        rng_description = target.description.get_random_description()
 
         feature_name = rng_description.__class__.__name__
         feature_quality = rng_description.name

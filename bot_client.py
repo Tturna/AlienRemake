@@ -36,6 +36,12 @@ class MyClient(discord.Client):
 
     def is_action_phase(self) -> bool:
         return self.game.game_state is GameState.ACTION_PHASE
+
+    def get_gamer_role(self) -> discord.Role:
+        if (self.gamer_role is None):
+            self.gamer_role = self.game_channel.guild.get_role(ALIEN_GAMER_ROLE_ID)
+
+        return self.gamer_role
     
     async def start_game(self, interaction: discord.Interaction) -> None:
         """Starts the game. Called by bot command."""
@@ -81,7 +87,7 @@ class MyClient(discord.Client):
         await interaction.channel.send(game_start_msg, view=role_view)
 
         for pl in list(self.game.players.values()):
-            await pl.member.add_roles(interaction.guild.get_role(ALIEN_GAMER_ROLE_ID))
+            await pl.member.add_roles(self.get_gamer_role())
 
         await asyncio.sleep(LOBBY_TIME)
         await self.game.run()
@@ -96,11 +102,10 @@ class MyClient(discord.Client):
         action_phase_msg = await self.game_channel.send(action_phase_text, view=action_view)
 
         for pl in list(self.game.players.values()):
-            await pl.member.remove_roles(self.game_channel.guild.get_role(ALIEN_GAMER_ROLE_ID))
+            await pl.member.remove_roles(self.get_gamer_role())
 
         await asyncio.sleep(ACTION_TIME)
 
-        # TODO: Hide the action select
         await action_phase_msg.edit(content=f"Action phase ended. Time expired.", view=None)
         
     async def discussion_phase(self):
@@ -109,10 +114,8 @@ class MyClient(discord.Client):
         discussion_time_epoch = int(time.time()) + DISCUSSION_TIME
         discussion_phase_msg = await self.game_channel.send(f"Discussion phase started! Time expires: <t:{discussion_time_epoch}:R>")
 
-        # TODO: cache the role
-        # casserole?
         for pl in list(self.game.players.values()):
-            await pl.member.add_roles(self.game_channel.guild.get_role(ALIEN_GAMER_ROLE_ID))
+            await pl.member.add_roles(self.get_gamer_role())
 
         await asyncio.sleep(DISCUSSION_TIME)
 
@@ -145,7 +148,7 @@ class MyClient(discord.Client):
         await self.game_channel.send(f"\n# Game ended. {end_text}")
 
         for pl in list(self.game.players.values()):
-            await pl.member.remove_roles(self.game_channel.guild.get_role(ALIEN_GAMER_ROLE_ID))
+            await pl.member.remove_roles(self.get_gamer_role())
         
         self.game.reset_game()
     
