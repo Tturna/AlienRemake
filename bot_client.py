@@ -22,6 +22,7 @@ class MyClient(discord.Client):
         self.tree = app_commands.CommandTree(self)
         self.game = Game(self)
         self.game_channel = None
+        self.gamer_role = None
 
     # In this basic example, we just synchronize the app commands to one guild.
     # Instead of specifying a guild to every command, we copy over our global commands instead.

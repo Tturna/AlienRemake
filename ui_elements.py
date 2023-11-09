@@ -1,10 +1,9 @@
+from typing import Optional
 import discord
 from discord.interactions import Interaction
 from classes import Player, Role, GameState
-from constants import JOIN_TIME, LYNCH_TIME
+from constants import JOIN_TIME
 from actions import ActionsEnum
-
-# TODO: Make these views more modular
 
 class ShootTargetSelect(discord.ui.UserSelect):
     def __init__(self, game):
@@ -26,11 +25,6 @@ class ShootTargetSelect(discord.ui.UserSelect):
         self.game.shot_player = target
 
         await interaction.response.send_message(f"✅ You decide to shoot {self.values[0]}", ephemeral=True)
-
-class ShootTargetSelectView(discord.ui.View):
-    def __init__(self, game):
-        super().__init__()
-        self.add_item(ShootTargetSelect(game))
 
 class TargetSelect(discord.ui.UserSelect):
     def __init__(self, action_item: ActionsEnum, game):
@@ -65,11 +59,6 @@ class TargetSelect(discord.ui.UserSelect):
             msg = f"🚫 Action failed:\n**{error_text}**"
 
         await interaction.response.send_message(msg, ephemeral=True)
-
-class TargetSelectView(discord.ui.View):
-    def __init__(self, action_item: ActionsEnum, game):
-        super().__init__()
-        self.add_item(TargetSelect(action_item=action_item, game=game))
 
 class ActionSelect(discord.ui.Select):
     def __init__(self, player: Player, game):
@@ -109,7 +98,8 @@ class ActionSelect(discord.ui.Select):
         action_item = ActionsEnum[self.values[0]]
 
         if (action_item.value.takes_target):
-            await interaction.response.send_message("Select a target", ephemeral=True, view=TargetSelectView(action_item, self.game), delete_after=15)
+            # await interaction.response.send_message("Select a target", ephemeral=True, view=TargetSelectView(action_item, self.game), delete_after=15)
+            await interaction.response.send_message("Select a target", ephemeral=True, view=GenericView(TargetSelect, action_item, self.game), delete_after=15)
         else:
             action = action_item.value
             msg = f"✅ You decide to **{action.description}**..."
@@ -130,10 +120,11 @@ class ActionSelect(discord.ui.Select):
 
             await interaction.response.send_message(msg, ephemeral=True)
 
-class ActionSelectView(discord.ui.View):
-    def __init__(self, *, player: Player, game):
+class GenericView(discord.ui.View):
+    """Generic view with a single component. Intantiates the passed component with the passed args."""
+    def __init__(self, select_component, *args):
         super().__init__()
-        self.add_item(ActionSelect(player, game))
+        self.add_item(select_component(*args))
 
 class JoinGameView(discord.ui.View):
     def __init__(self, add_player_function):
@@ -235,7 +226,8 @@ class ShowActionView(discord.ui.View):
         player = self.game.players.get(interaction.user.id)
 
         # await interaction.response.send_modal(ActionModal())
-        await interaction.response.send_message("Select an action", ephemeral=True, view=ActionSelectView(player=player, game=self.game), delete_after=15)
+        # await interaction.response.send_message("Select an action", ephemeral=True, view=ActionSelectView(player=player, game=self.game), delete_after=15)
+        await interaction.response.send_message("Select an action", ephemeral=True, view=GenericView(ActionSelect, player, self.game), delete_after=15)
 
 class ShootView(discord.ui.View):
     def __init__(self, game, gun_player: Player):
@@ -259,4 +251,5 @@ class ShootView(discord.ui.View):
             await interaction.response.send_message("🚫 You don't have the gun", ephemeral=True)
             return
     
-        await interaction.response.send_message("Select a target", ephemeral=True, view=ShootTargetSelectView(self.game), delete_after=15)
+        # await interaction.response.send_message("Select a target", ephemeral=True, view=ShootTargetSelectView(self.game), delete_after=15)
+        await interaction.response.send_message("Select a target", ephemeral=True, view=GenericView(ShootTargetSelect, self.game), delete_after=15)
