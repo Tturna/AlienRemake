@@ -40,6 +40,8 @@ class MyClient(discord.Client):
     async def start_game(self, interaction: discord.Interaction) -> None:
         """Starts the game. Called by bot command."""
 
+        # TODO: Consider making a new thread for each game
+
         self.game.game_state = GameState.JOIN_PHASE
         self.game_channel = interaction.channel
 
@@ -66,6 +68,8 @@ class MyClient(discord.Client):
             return
 
         self.game.init_game()
+
+        # TODO: Announce joined players
 
         joined_players = str([f"{pl.member.nick} ({pl.member.name})" for pl in list(self.game.players.values())])
 
