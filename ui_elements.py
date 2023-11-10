@@ -1,4 +1,3 @@
-from typing import Optional
 import discord
 from discord.interactions import Interaction
 from classes import Player, Role, GameState
@@ -121,7 +120,7 @@ class ActionSelect(discord.ui.Select):
             await interaction.response.send_message(msg, ephemeral=True)
 
 class GenericView(discord.ui.View):
-    """Generic view with a single component. Intantiates the passed component with the passed args."""
+    """Generic view with a single component. Instantiates the passed component with the passed args."""
     def __init__(self, select_component, *args):
         super().__init__()
         self.add_item(select_component(*args))

@@ -241,7 +241,6 @@ class Action():
     takes_target = property(fget=lambda self: self._takes_target)
     description = property(fget=lambda self: self._description)
 
-# TODO: Figure out what Enum actually does and note it down
 class ActionsEnum(Enum):
     """Represents all the actions that can be performed by a player."""
 
@@ -250,7 +249,8 @@ class ActionsEnum(Enum):
         cost=1,
         roles=[Role.HUMAN],
         takes_target=True,
-        description="Scout (1p) - Leave your quarters to find out a description of someone if they leave their quarters.")
+        description="Scout (1p) - Leave your quarters to find out a description of someone if they leave their quarters."
+    )
 
     HIDE = Action(
         function=hide_wrapper,
