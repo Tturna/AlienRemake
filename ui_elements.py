@@ -1,7 +1,7 @@
 import discord
 from discord.interactions import Interaction
 from classes import Player, Role, GameState
-from constants import JOIN_TIME, LYNCH_TIME
+from constants import JOIN_TIME
 from actions import ActionsEnum
 
 # TODO: Make these views more modular
