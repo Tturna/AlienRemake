@@ -71,7 +71,7 @@ class Game:
         alive_count = 0
 
         for pl in list(self.players.values()):
-            if pl.role == Role.ALIEN:
+            if pl.role == Role.ALIEN and pl.alive:
                 alien_alive = True
             
             if pl.alive:
@@ -201,6 +201,9 @@ class Game:
                 self.shot_player.alive = False
                 await self.bot_client.announce_shot_player(self.shot_player.member.nick or self.shot_player.member.name)
                 self.shot_player = None
+
+                win_text = self.check_game_end()
+                if win_text is not None: break
 
             # Check for aborts
             if self.game_state == GameState.ENDED: return

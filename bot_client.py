@@ -22,6 +22,7 @@ class MyClient(discord.Client):
         self.tree = app_commands.CommandTree(self)
         self.game = Game(self)
         self.game_channel = None
+        self.gamer_role = None
 
     # In this basic example, we just synchronize the app commands to one guild.
     # Instead of specifying a guild to every command, we copy over our global commands instead.
@@ -45,6 +46,8 @@ class MyClient(discord.Client):
     
     async def start_game(self, interaction: discord.Interaction) -> None:
         """Starts the game. Called by bot command."""
+
+        # TODO: Consider making a new thread for each game
 
         self.game.game_state = GameState.JOIN_PHASE
         self.game_channel = interaction.channel
@@ -72,6 +75,8 @@ class MyClient(discord.Client):
             return
 
         self.game.init_game()
+
+        # TODO: Announce joined players
 
         joined_players = str([f"{pl.member.nick} ({pl.member.name})" for pl in list(self.game.players.values())])
 
