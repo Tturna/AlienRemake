@@ -5,7 +5,6 @@ import discord
 from typing import Callable
 from classes import Player, Role, GameState, Height, Footprint, Haircolor
 
-# TODO: Check if Python has singletons or something
 class Game:
     def __init__(self, bot_client) -> None:
         self.bot_client = bot_client
@@ -217,3 +216,5 @@ class Game:
 
         self.game_state = GameState.ENDED
         self.players = dict()
+
+GAME_CLIENT = Game()

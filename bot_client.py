@@ -7,7 +7,7 @@ from discord import app_commands
 from constants import UBSR_GUILD, ALIEN_GAMER_ROLE_ID, MIN_PLAYERS, JOIN_TIME, LOBBY_TIME, ACTION_TIME, DISCUSSION_TIME, LYNCH_TIME
 from classes import GameState
 from ui_elements import JoinGameView, ShowRoleView, ShowActionView, ShootView
-from core import Game
+from core import GAME_CLIENT
 
 class MyClient(discord.Client):
     def __init__(self, *, intents: discord.Intents):
@@ -20,7 +20,6 @@ class MyClient(discord.Client):
         # Note: When using commands.Bot instead of discord.Client, the bot will
         # maintain its own tree instead.
         self.tree = app_commands.CommandTree(self)
-        self.game = Game(self)
         self.game_channel = None
         self.gamer_role = None
 
@@ -33,10 +32,10 @@ class MyClient(discord.Client):
         await self.tree.sync(guild=UBSR_GUILD)
 
     def is_game_running(self) -> bool:
-        return self.game.game_state is not GameState.ENDED
+        return GAME_CLIENT.game_state is not GameState.ENDED
 
     def is_action_phase(self) -> bool:
-        return self.game.game_state is GameState.ACTION_PHASE
+        return GAME_CLIENT.game_state is GameState.ACTION_PHASE
 
     def get_gamer_role(self) -> discord.Role:
         if (self.gamer_role is None):
@@ -49,10 +48,10 @@ class MyClient(discord.Client):
 
         # TODO: Consider making a new thread for each game
 
-        self.game.game_state = GameState.JOIN_PHASE
+        GAME_CLIENT.game_state = GameState.JOIN_PHASE
         self.game_channel = interaction.channel
 
-        join_game_view = JoinGameView(self.game.add_player)
+        join_game_view = JoinGameView(GAME_CLIENT.add_player)
 
         expire_time_epoch = int(time.time()) + JOIN_TIME
 
@@ -70,28 +69,28 @@ class MyClient(discord.Client):
         join_game_view.stop()
         print("Join time ended.")
 
-        if (len(self.game.players) < MIN_PLAYERS):
-            await self.stop_game(f"Not enough players ({len(self.game.players)}). Minimum is {MIN_PLAYERS}.")
+        if (len(GAME_CLIENT.players) < MIN_PLAYERS):
+            await self.stop_game(f"Not enough players ({len(GAME_CLIENT.players)}). Minimum is {MIN_PLAYERS}.")
             return
 
-        self.game.init_game()
+        GAME_CLIENT.init_game()
 
         # TODO: Announce joined players
 
-        joined_players = str([f"{pl.member.nick} ({pl.member.name})" for pl in list(self.game.players.values())])
+        joined_players = str([f"{pl.member.nick} ({pl.member.name})" for pl in list(GAME_CLIENT.players.values())])
 
-        print(f"Joined players ({len(self.game.players)}): {joined_players}")
+        print(f"Joined players ({len(GAME_CLIENT.players)}): {joined_players}")
 
         role_view = ShowRoleView(self.game)
-        game_start_msg = f"{len(self.game.players)} player(s) joined.\n# Game is starting!\nSee your role:"
+        game_start_msg = f"{len(GAME_CLIENT.players)} player(s) joined.\n# Game is starting!\nSee your role:"
 
         await interaction.channel.send(game_start_msg, view=role_view)
 
-        for pl in list(self.game.players.values()):
+        for pl in list(GAME_CLIENT.players.values()):
             await pl.member.add_roles(self.get_gamer_role())
 
         await asyncio.sleep(LOBBY_TIME)
-        await self.game.run()
+        await GAME_CLIENT.run()
 
     async def action_phase(self):
         """Called by core."""
@@ -102,7 +101,7 @@ class MyClient(discord.Client):
 
         action_phase_msg = await self.game_channel.send(action_phase_text, view=action_view)
 
-        for pl in list(self.game.players.values()):
+        for pl in list(GAME_CLIENT.players.values()):
             await pl.member.remove_roles(self.get_gamer_role())
 
         await asyncio.sleep(ACTION_TIME)
@@ -115,7 +114,7 @@ class MyClient(discord.Client):
         discussion_time_epoch = int(time.time()) + DISCUSSION_TIME
         discussion_phase_msg = await self.game_channel.send(f"Discussion phase started! Time expires: <t:{discussion_time_epoch}:R>")
 
-        for pl in list(self.game.players.values()):
+        for pl in list(GAME_CLIENT.players.values()):
             await pl.member.add_roles(self.get_gamer_role())
 
         await asyncio.sleep(DISCUSSION_TIME)
@@ -148,10 +147,10 @@ class MyClient(discord.Client):
 
         await self.game_channel.send(f"\n# Game ended. {end_text}")
 
-        for pl in list(self.game.players.values()):
+        for pl in list(GAME_CLIENT.players.values()):
             await pl.member.remove_roles(self.get_gamer_role())
         
-        self.game.reset_game()
+        GAME_CLIENT.reset_game()
     
     async def abort_game(self, interaction: discord.Interaction) -> None:
         """Aborts the game and removes the Alien Gamer role from all players.

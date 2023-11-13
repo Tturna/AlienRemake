@@ -212,13 +212,13 @@ def kill_wrapper(player: Player, target: Player):
             msg = f"You couldn't find {target_name}, but you found {kill_target_name}! You killed them instead."
             kill_target.alive = False
 
-            rng_description = get_random_description(kill_target.description)
+            rng_description = kill_target.description.get_random_description()
             game.set_evidence(kill_target, rng_description)
         else:
             msg = f"🔪 **You killed {target_name}!**"
             target.alive = False
 
-            rng_description = get_random_description(target.description)
+            rng_description = target.description.get_random_description()
             game.set_evidence(kill_target, rng_description)
 
         return msg
