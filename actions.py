@@ -1,7 +1,6 @@
 from enum import Enum
 from typing import Callable
-import random
-from classes import Player, Description, Role
+from classes import Player, Role
 from core import Game
 
 # TODO: Unit tests

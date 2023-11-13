@@ -46,6 +46,9 @@ class Description():
         return desc_features[feature_key]
 
 class Player:
+    __slots__ = ("_member_object", "description", "role", "action_function", "leaving_quarters",
+                 "hiding", "attacked", "protectors", "action_callback", "alive", "action_points")
+
     def __init__(self, member: discord.Member) -> None:
         self._member_object = member
         self.description = Description(

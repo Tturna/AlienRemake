@@ -6,8 +6,8 @@ from typing import Callable
 from classes import Player, Role, GameState, Height, Footprint, Haircolor
 
 class Game:
-    def __init__(self, bot_client) -> None:
-        self.bot_client = bot_client
+    def __init__(self) -> None:
+        self.bot_client = None
         self.game_state = GameState.ENDED
         self.players = dict()
         self.alien_player_id = None

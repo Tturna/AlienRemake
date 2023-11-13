@@ -22,6 +22,9 @@ class MyClient(discord.Client):
         self.tree = app_commands.CommandTree(self)
         self.game_channel = None
         self.gamer_role = None
+        
+        # TODO: Is this smart?
+        GAME_CLIENT.bot_client = self
 
     # In this basic example, we just synchronize the app commands to one guild.
     # Instead of specifying a guild to every command, we copy over our global commands instead.
@@ -81,7 +84,7 @@ class MyClient(discord.Client):
 
         print(f"Joined players ({len(GAME_CLIENT.players)}): {joined_players}")
 
-        role_view = ShowRoleView(self.game)
+        role_view = ShowRoleView(GAME_CLIENT)
         game_start_msg = f"{len(GAME_CLIENT.players)} player(s) joined.\n# Game is starting!\nSee your role:"
 
         await interaction.channel.send(game_start_msg, view=role_view)
@@ -96,7 +99,7 @@ class MyClient(discord.Client):
         """Called by core."""
 
         action_time_epoch = int(time.time()) + ACTION_TIME
-        action_view = ShowActionView(self.game)
+        action_view = ShowActionView(GAME_CLIENT)
         action_phase_text = f"🔍 **Action phase started!** Time expires: <t:{action_time_epoch}:R>\n\n**+1 Action Point!**\n\nSee your points and actions:"
 
         action_phase_msg = await self.game_channel.send(action_phase_text, view=action_view)
@@ -127,7 +130,7 @@ class MyClient(discord.Client):
         gun_player_name = gun_player.member.nick or gun_player.member.name
 
         msg = f"Lynch phase started! Time expires: <t:{lynch_time_epoch}:R>\n\n🔫 **{gun_player_name}** has the gun!"
-        lynch_phase_msg = await self.game_channel.send(msg, view=ShootView(game=self.game, gun_player=gun_player))
+        lynch_phase_msg = await self.game_channel.send(msg, view=ShootView(game=GAME_CLIENT, gun_player=gun_player))
 
         await asyncio.sleep(LYNCH_TIME)
 
